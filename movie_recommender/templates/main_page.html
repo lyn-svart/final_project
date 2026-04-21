@@ -2,10 +2,45 @@
 
 {% block body %}
 	<h1>Hoş Geldiniz</h1>
-	<p>Benzerini bulmak istediğiniz filmi girin.</p>
-       <form action="/", method="post">
-	    <label for="my_favorite" class="form-label"></label>   
-               <input type="text" placeholder="Örnek: Toy Story" name="my_favorite" value="">   
+	<p>Benzerini bulmak istediğiniz filmi girin ve filtreleri seçin.</p>
+       <form action="/", method="post" style="max-width: 640px; margin: 0 auto;">
+	    <label for="my_favorite" class="form-label"></label>
+		   <div class="js-autocomplete">
+               <input type="text" placeholder="Örnek: Toy Story" name="my_favorite" value="" required autocomplete="off" class="js-movie-input">
+               <div class="js-suggest-box"></div>
+		   </div>
+		   <div style="display: flex; gap: 10px; margin-top: 8px;">
+			   <select name="year_mode" style="width: 40%;">
+				   <option value="between" {% if year_mode == "between" %}selected{% endif %}>Yıl aralığı</option>
+				   <option value="after" {% if year_mode == "after" %}selected{% endif %}>Bu yıldan sonra</option>
+				   <option value="before" {% if year_mode == "before" %}selected{% endif %}>Bu yıla kadar</option>
+				   <option value="all" {% if year_mode == "all" %}selected{% endif %}>Yıl fark etmez</option>
+			   </select>
+			   <select name="sort_by" style="width: 60%;">
+				   <option value="hybrid" {% if sort_by == "hybrid" %}selected{% endif %}>Sıralama: Hibrit skor</option>
+				   <option value="popular" {% if sort_by == "popular" %}selected{% endif %}>Sıralama: TMDB popülerlik</option>
+			   </select>
+		   </div>
+		   <div style="display: flex; gap: 10px; margin-top: 8px;">
+			   <input type="number" name="year_from" value="{{ year_from }}" placeholder="Başlangıç yıl" min="1900" max="2100">
+			   <input type="number" name="year_to" value="{{ year_to }}" placeholder="Bitiş yıl" min="1900" max="2100">
+		   </div>
+		   <div style="display: flex; gap: 10px; margin-top: 8px;">
+			   <input type="number" step="0.1" min="0" max="10" name="min_vote_average"
+				      value="{{ min_vote_average }}" placeholder="Min TMDB puanı (0-10)">
+		   </div>
+		   <details style="margin-top: 8px; text-align: left; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 8px;">
+			   <summary><strong>Tur Filtreleri</strong> (istemediğin turleri kaldir)</summary>
+			   <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; max-height: 170px; overflow-y: auto;">
+				   {% for g in genre_options %}
+				     <label style="font-size: 13px;">
+					   <input type="checkbox" name="genres" value="{{ g }}"
+					          {% if g in selected_genres %}checked{% endif %}>
+					   {{ g }}
+				     </label>
+				   {% endfor %}
+			   </div>
+		   </details>
            <input type="submit" value="Öneri Al"> 
        </form>
 {% endblock %}

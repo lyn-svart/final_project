@@ -54,6 +54,41 @@
 		input[type=text]:focus {
 		  border: 3px solid #555;
 		}
+		.js-autocomplete { position: relative; width: 100%; }
+		.js-suggest-box { position: absolute; left: 0; right: 0; top: calc(100% + 4px); width: 100%; }
+		.suggest-panel {
+			position: relative;
+			top: 0;
+			left: 0;
+			right: 0;
+			background: #fff;
+			border: 2px solid #666;
+			border-radius: 6px;
+			box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+			z-index: 9999;
+			max-height: 360px;
+			overflow-y: auto;
+			text-align: left;
+		}
+		.suggest-item {
+			display: flex;
+			gap: 10px;
+			align-items: center;
+			padding: 8px 10px;
+			cursor: pointer;
+			border-bottom: 1px solid #f2f2f2;
+		}
+		.suggest-item:last-child { border-bottom: none; }
+		.suggest-item.active, .suggest-item:hover { background: #f5f7ff; }
+		.suggest-thumb {
+			width: 36px;
+			height: 54px;
+			object-fit: cover;
+			border-radius: 4px;
+			background: #eee;
+			flex-shrink: 0;
+		}
+		.suggest-meta { font-size: 12px; color: #666; }
 		body {
 			background-color: rgb(225, 225, 225);
 			color: rgb(0, 0, 0);
@@ -87,6 +122,7 @@
 			right: 25%;
 			bottom: 20%;
 			z-index: 2;
+			overflow: visible;
 		}
 	</style>
 </head>
@@ -101,5 +137,107 @@
 	<div id="screen">
 		{% block body %}{% endblock %}
 	</div>
+	<script>
+		(function () {
+			const input = document.querySelector(".js-movie-input");
+			if (!input) return;
+			const wrapper = input.closest(".js-autocomplete");
+			const box = wrapper ? wrapper.querySelector(".js-suggest-box") : null;
+			if (!box) return;
+
+			let timer = null;
+			let items = [];
+			let activeIndex = -1;
+			let panel = null;
+
+			function closePanel() {
+				if (panel) panel.remove();
+				panel = null;
+			}
+
+			function clearSuggestions() {
+				closePanel();
+				items = [];
+				activeIndex = -1;
+			}
+
+			function selectItem(index) {
+				if (index < 0 || index >= items.length) return;
+				input.value = items[index].label || "";
+				clearSuggestions();
+			}
+
+			function renderPanel() {
+				closePanel();
+				if (!items.length) return;
+				panel = document.createElement("div");
+				panel.className = "suggest-panel";
+				panel.innerHTML = items.map((item, idx) => {
+					const meta = item.group_count > 1 ? `${item.group_count} sürüm` : "Tek sürüm";
+					const poster = item.poster_url ? `<img class="suggest-thumb" src="${item.poster_url}" alt="">` : `<div class="suggest-thumb"></div>`;
+					return `
+						<div class="suggest-item ${idx === activeIndex ? "active" : ""}" data-idx="${idx}">
+							${poster}
+							<div>
+								<div>${item.label}</div>
+								<div class="suggest-meta">${meta}</div>
+							</div>
+						</div>
+					`;
+				}).join("");
+				box.appendChild(panel);
+				panel.querySelectorAll(".suggest-item").forEach((el) => {
+					el.addEventListener("mousedown", function (evt) {
+						evt.preventDefault();
+						selectItem(Number(el.dataset.idx));
+					});
+				});
+			}
+
+			input.addEventListener("input", function () {
+				const q = input.value.trim();
+				if (timer) clearTimeout(timer);
+				if (q.length < 2) {
+					clearSuggestions();
+					return;
+				}
+				timer = setTimeout(async function () {
+					try {
+						const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
+						if (!res.ok) return;
+						const data = await res.json();
+						items = Array.isArray(data.suggestions) ? data.suggestions : [];
+						activeIndex = items.length ? 0 : -1;
+						renderPanel();
+					} catch (e) {
+						// Ignore network errors to keep search usable.
+					}
+				}, 150);
+			});
+
+			input.addEventListener("keydown", function (evt) {
+				if (!items.length) return;
+				if (evt.key === "ArrowDown") {
+					evt.preventDefault();
+					activeIndex = (activeIndex + 1) % items.length;
+					renderPanel();
+				} else if (evt.key === "ArrowUp") {
+					evt.preventDefault();
+					activeIndex = (activeIndex - 1 + items.length) % items.length;
+					renderPanel();
+				} else if (evt.key === "Enter" && activeIndex >= 0) {
+					evt.preventDefault();
+					selectItem(activeIndex);
+				} else if (evt.key === "Escape") {
+					clearSuggestions();
+				}
+			});
+
+			document.addEventListener("click", function (evt) {
+				if (evt.target === input || box.contains(evt.target)) return;
+				clearSuggestions();
+			});
+		})();
+	</script>
 </body>
 </html>
