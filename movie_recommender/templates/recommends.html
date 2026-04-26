@@ -2,73 +2,153 @@
 
 {% block body %}
 <h1>{{movie_name}} için öneriler</h1>
+<p class="subtitle">Filtreleri güncelleyerek öneri listesini anında yeniden oluşturabilirsin.</p>
 
-<form action="/" method="post" style="max-width: 640px; margin: 0 auto 20px auto;">
-  <div class="js-autocomplete">
-    <input type="text" name="my_favorite" value="{{ movie_name }}" required autocomplete="off" class="js-movie-input">
-    <div class="js-suggest-box"></div>
-  </div>
-  <div style="display: flex; gap: 10px; margin-top: 8px;">
-    <select name="year_mode" style="width: 40%;">
-      <option value="between" {% if year_mode == "between" %}selected{% endif %}>Yıl aralığı</option>
-      <option value="after" {% if year_mode == "after" %}selected{% endif %}>Bu yıldan sonra</option>
-      <option value="before" {% if year_mode == "before" %}selected{% endif %}>Bu yıla kadar</option>
-      <option value="all" {% if year_mode == "all" %}selected{% endif %}>Yıl fark etmez</option>
-    </select>
-    <select name="sort_by" style="width: 60%;">
-      <option value="hybrid" {% if sort_by == "hybrid" %}selected{% endif %}>Sıralama: Hibrit skor</option>
-      <option value="popular" {% if sort_by == "popular" %}selected{% endif %}>Sıralama: TMDB popülerlik</option>
-    </select>
-  </div>
-  <div style="display: flex; gap: 10px; margin-top: 8px;">
-    <input type="number" name="year_from" value="{{ year_from }}" placeholder="En eski yıl" min="1900" max="2100">
-    <input type="number" name="year_to" value="{{ year_to }}" placeholder="En yeni yıl" min="1900" max="2100">
-  </div>
-  <div style="display: flex; gap: 10px; margin-top: 8px;">
-    <input type="number" step="0.1" min="0" max="10" name="min_vote_average"
-           value="{{ min_vote_average }}" placeholder="Min TMDB puanı (0-10)">
-  </div>
-  <details style="margin-top: 8px; text-align: left; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 8px;">
-    <summary><strong>Tur Filtreleri</strong> (istemediğin turleri kaldir)</summary>
-    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; max-height: 170px; overflow-y: auto;">
-      {% for g in genre_options %}
-        <label style="font-size: 13px;">
-          <input type="checkbox" name="genres" value="{{ g }}"
-                 {% if g in selected_genres %}checked{% endif %}>
-          {{ g }}
-        </label>
-      {% endfor %}
+<form action="/" method="post">
+  <div class="form-layout">
+    <div class="filter-card">
+      <h3>Film Arama</h3>
+      <div class="js-autocomplete">
+        <input type="text" name="my_favorite" value="{{ movie_name }}" required autocomplete="off" class="js-movie-input">
+        <div class="js-suggest-box"></div>
+      </div>
+      {% if selected_movie and selected_movie.poster_url %}
+        <div class="selected-movie-card mt-10">
+          <div class="selected-movie-media">
+            {% if selected_movie.imdb_url %}
+              <a href="{{ selected_movie.imdb_url }}" target="_blank" rel="noopener noreferrer">
+                <img src="{{ selected_movie.poster_url }}" alt="{{ selected_movie.display_title }} poster">
+              </a>
+            {% else %}
+              <img src="{{ selected_movie.poster_url }}" alt="{{ selected_movie.display_title }} poster">
+            {% endif %}
+          </div>
+          <div class="selected-movie-meta">
+            <span class="badge">Aratılan Film</span>
+            <h3 class="poster-title">{{ selected_movie.display_title }}{% if selected_movie.release_year %} ({{ selected_movie.release_year }}){% endif %}</h3>
+            <div class="stats">
+              <span>IMDb Puanı: {{ selected_movie.imdb_rating }}/10</span>
+              <span>Türler: {{ selected_movie.genres if selected_movie.genres else "Bilinmiyor" }}</span>
+            </div>
+          </div>
+        </div>
+      {% endif %}
     </div>
-  </details>
-  <input type="submit" value="Filtreyi Uygula">
+    <div class="filter-card">
+      <h3>Filtreler</h3>
+      <div class="field-grid-single">
+        <select name="year_mode">
+          <option value="between" {% if year_mode == "between" %}selected{% endif %}>Yıl aralığı</option>
+          <option value="after" {% if year_mode == "after" %}selected{% endif %}>Bu yıldan sonra</option>
+          <option value="before" {% if year_mode == "before" %}selected{% endif %}>Bu yıla kadar</option>
+          <option value="all" {% if year_mode == "all" %}selected{% endif %}>Yıl fark etmez</option>
+        </select>
+      </div>
+      <div class="field-grid mt-10">
+        <input type="number" name="year_from" value="{{ year_from }}" placeholder="En eski yıl" min="1900" max="2100">
+        <input type="number" name="year_to" value="{{ year_to }}" placeholder="En yeni yıl" min="1900" max="2100">
+      </div>
+      <div class="field-grid-single mt-10">
+        <input type="number" step="0.1" min="0" max="10" name="min_vote_average"
+               value="{{ min_vote_average }}" placeholder="Min TMDB puanı (0-10)">
+      </div>
+      <details class="genre-details">
+        <summary><strong>Tür Filtreleri</strong> (istemediğin türleri kaldır)</summary>
+        <div class="genre-grid">
+          {% for g in genre_options %}
+            <label class="genre-item">
+              <input type="checkbox" name="genres" value="{{ g }}"
+                     {% if g in selected_genres %}checked{% endif %}>
+              {{ g }}
+            </label>
+          {% endfor %}
+        </div>
+      </details>
+      <input type="submit" value="Filtreyi Uygula" class="primary-btn">
+    </div>
+  </div>
 </form>
 
 {% if error_message %}
-  <p>{{ error_message }}</p>
+  <div class="message-card error">{{ error_message }}</div>
 {% endif %}
 
 {% if recommendations %}
-  <p>TMDB içerik benzerliği + MovieLens rating gücü ile hibrit sıralama:</p>
-  <ol style="text-align: left; max-width: 1200px; margin: 0 auto; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+  <div class="message-card">
+    TMDB içerik benzerliği + MovieLens rating gücü ile hibrit sıralama:
+  </div>
+  <ol class="poster-grid js-rec-grid">
     {% for rec in recommendations %}
-      <li style="list-style: none; border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fff;">
-        <div>
-          {% if rec.poster_url %}
-            <img src="{{ rec.poster_url }}" alt="{{ rec.title }} poster"
-                 style="width: 100%; max-width: 180px; border-radius: 6px; display: block; margin: 0 auto 8px auto;">
-          {% endif %}
-          <div>
-            <strong>{{ rec.display_title }} ({{ rec.release_year }})</strong><br>
-            Skor: {{ rec.score }} |
-            Benzerlik: {{ rec.similarity }} |
-            ML Puanı: {{ rec.ml_rating_mean }} ({{ rec.ml_rating_count }} oy)
+      <li class="poster-card {% if loop.index > 10 %}is-hidden{% endif %}" data-rec-index="{{ loop.index }}">
+        {% if rec.imdb_url %}
+        <a class="poster-link" href="{{ rec.imdb_url }}" target="_blank" rel="noopener noreferrer">
+          <div class="poster-image-wrap">
+            {% if rec.poster_url %}
+              <img src="{{ rec.poster_url }}" alt="{{ rec.title }} poster">
+            {% endif %}
           </div>
-        </div>
+          <div class="poster-body">
+            <span class="badge">{{ rec.release_year }}</span>
+            <h3 class="poster-title">{{ rec.display_title }} ({{ rec.release_year }})</h3>
+            <div class="stats">
+              <span>IMDb Puanı: {{ rec.imdb_rating }}/10</span>
+              <span>Türler: {{ rec.genres if rec.genres else "Bilinmiyor" }}</span>
+            </div>
+          </div>
+        </a>
+        {% else %}
+          <div class="poster-image-wrap">
+            {% if rec.poster_url %}
+              <img src="{{ rec.poster_url }}" alt="{{ rec.title }} poster">
+            {% endif %}
+          </div>
+          <div class="poster-body">
+            <span class="badge">{{ rec.release_year }}</span>
+            <h3 class="poster-title">{{ rec.display_title }} ({{ rec.release_year }})</h3>
+            <div class="stats">
+              <span>IMDb Puanı: {{ rec.imdb_rating }}/10</span>
+              <span>Türler: {{ rec.genres if rec.genres else "Bilinmiyor" }}</span>
+            </div>
+          </div>
+        {% endif %}
       </li>
     {% endfor %}
   </ol>
+  {% if recommendations|length > 10 %}
+    <div class="load-more-wrap">
+      <button type="button" class="primary-btn load-more-btn js-load-more-btn" data-visible-count="10">Daha fazla göster</button>
+    </div>
+  {% endif %}
 {% elif not error_message %}
-  <p>Bu filtrelerle sonuç bulunamadı. Yıl aralığını genişletmeyi deneyin.</p>
+  <div class="message-card">Bu filtrelerle sonuç bulunamadı. Yıl aralığını genişletmeyi deneyin.</div>
 {% endif %}
+
+<script>
+  (function () {
+    const button = document.querySelector(".js-load-more-btn");
+    const cards = Array.from(document.querySelectorAll(".js-rec-grid .poster-card"));
+    if (!button || !cards.length) return;
+
+    function updateVisibility(nextVisibleCount) {
+      cards.forEach((card, idx) => {
+        if (idx < nextVisibleCount) {
+          card.classList.remove("is-hidden");
+        } else {
+          card.classList.add("is-hidden");
+        }
+      });
+      if (nextVisibleCount >= cards.length) {
+        button.style.display = "none";
+      } else {
+        button.dataset.visibleCount = String(nextVisibleCount);
+      }
+    }
+
+    button.addEventListener("click", function () {
+      const currentVisible = Number(button.dataset.visibleCount || "10");
+      updateVisibility(currentVisible + 10);
+    });
+  })();
+</script>
      
 {% endblock %}     

@@ -23,6 +23,18 @@ def _clean_text(value: object) -> str:
     return str(value).strip().lower()
 
 
+def _build_imdb_url(imdb_id: object) -> str:
+    if pd.isna(imdb_id):
+        return ""
+    text = str(imdb_id).strip()
+    if not text:
+        return ""
+    digits = re.sub(r"\D", "", text)
+    if not digits:
+        return ""
+    return f"https://www.imdb.com/title/tt{digits.zfill(7)}/"
+
+
 def _extract_year(title: str) -> str:
     if not isinstance(title, str) or len(title) < 6:
         return ""
@@ -308,6 +320,9 @@ def recommend_movies(
                 "similarity": round(float(sim_scores[i]), 4),
                 "ml_rating_mean": round(float(rating_mean[i]), 2),
                 "ml_rating_count": int(rating_count[i]),
+                "imdb_rating": round(float(data.iloc[int(i)]["vote_average"]), 1),
+                "genres": str(data.iloc[int(i)]["genres"]).strip(),
+                "imdb_url": _build_imdb_url(data.iloc[int(i)]["imdbId"]),
             }
         )
 
@@ -363,6 +378,28 @@ def suggest_movies_data(query: str, limit: int = 8) -> list[dict]:
             }
         )
     return results
+
+
+def get_movie_details(movie_query: str) -> dict | None:
+    data, _, titles, normalized_map, _, _, _ = _build_model()
+    idx = _resolve_movie_index(movie_query, titles, normalized_map)
+    if idx is None:
+        return None
+    row = data.iloc[int(idx)]
+    release_year = row["release_year"]
+    year_text = str(int(release_year)) if pd.notna(release_year) else ""
+    return {
+        "display_title": str(row["display_title"]),
+        "release_year": year_text,
+        "poster_url": (
+            f"{POSTER_BASE_URL}{row['poster_path']}"
+            if isinstance(row["poster_path"], str) and row["poster_path"]
+            else ""
+        ),
+        "imdb_url": _build_imdb_url(row["imdbId"]),
+        "imdb_rating": round(float(row["vote_average"]), 1),
+        "genres": str(row["genres"]).strip(),
+    }
 
 
 def get_available_genres() -> list[str]:

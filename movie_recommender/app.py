@@ -76,7 +76,7 @@ def results():
         year_to_raw = request.form.get('year_to', '')
         year_mode = request.form.get('year_mode', 'between')
         min_vote_average_raw = request.form.get('min_vote_average', '')
-        sort_by = request.form.get('sort_by', 'hybrid')
+        sort_by = 'hybrid'
         selected_genres = request.form.getlist('genres')
         year_from = _parse_optional_year(year_from_raw)
         year_to = _parse_optional_year(year_to_raw)
@@ -92,17 +92,20 @@ def results():
 
         movie_name, recommendations = hybrid_recommender.recommend_movies(
             my_favorite,
+            top_k=100,
             year_from=year_from,
             year_to=year_to,
             min_vote_average=min_vote_average,
             sort_by=sort_by,
             genres=selected_genres,
         )
+        selected_movie = hybrid_recommender.get_movie_details(movie_name or my_favorite)
         if movie_name is None:
             return render_template(
                 "recommends.html",
                 movie_name=my_favorite,
                 recommendations=[],
+                selected_movie=selected_movie,
                 error_message="Film bulunamadı. Lütfen farklı bir ad deneyin.",
                 year_from=year_from_raw,
                 year_to=year_to_raw,
@@ -116,6 +119,7 @@ def results():
             "recommends.html",
             movie_name=movie_name,
             recommendations=recommendations,
+            selected_movie=selected_movie,
             error_message=None,
             year_from=year_from_raw,
             year_to=year_to_raw,
@@ -130,6 +134,7 @@ def results():
         "recommends.html",
         movie_name="",
         recommendations=[],
+        selected_movie=None,
         error_message="Bir sorun oluştu!",
         year_from="",
         year_to="",
